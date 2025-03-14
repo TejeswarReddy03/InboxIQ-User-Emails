@@ -7,7 +7,38 @@
     <!-- Firebase SDK -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.2/firebase-app-compat.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.2/firebase-firestore-compat.min.js"></script>
-    <style>
+   
+     
+        
+        <style>
+            /* Modal Styles */
+            .modal {
+                display: none; 
+                position: fixed;
+                z-index: 1000;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+            }
+            .modal-content {
+                background-color: white;
+                padding: 20px;
+                border-radius: 10px;
+                width: 300px;
+                margin: 20% auto;
+                text-align: center;
+                position: relative;
+            }
+            .close {
+                position: absolute;
+                top: 5px;
+                right: 10px;
+                font-size: 20px;
+                cursor: pointer;
+            }
+        
         * {
             margin: 0;
             padding: 0;
@@ -399,6 +430,42 @@
                 grid-template-columns: 1fr;
             }
         }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 320px;
+            margin: 20% auto;
+            text-align: center;
+            position: relative;
+        }
+        .modal-buttons {
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn.cancel {
+            background-color: #ccc;
+        }
+        .btn:hover {
+            opacity: 0.8;
+        }
+        
     </style>
 </head>
 <body>
@@ -410,6 +477,15 @@
                     <span class="user-email" id="user-email">Select a user</span>
                     <button id="back-button" class="back-button">Back to Users</button>
                     <a href="/logout" class="logout-button">Logout</a>
+                </div>
+            </div>
+            <div id="confirmModal" class="modal">
+                <div class="modal-content">
+                    <p id="confirmText">Are you sure you want to delete ALL emails with third-party apps? This action cannot be undone.</p>
+                    <div class="modal-buttons">
+                        <button id="confirmYes" class="btn">Yes</button>
+                        <button id="confirmNo" class="btn cancel">Cancel</button>
+                    </div>
                 </div>
             </div>
 
@@ -428,7 +504,12 @@
 
                 </div>
             </div>
-
+            <div id="popupModal" class="modal">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <p id="modalText"></p>
+                </div>
+            </div>
             <!-- Email View (initially hidden) -->
             <div id="email-view" style="display: none;">
                 <div class="dashboard-controls">
@@ -477,6 +558,45 @@
     </div>
 
         <script>
+
+            function showConfirmation(callback) {
+                const modal = document.getElementById("confirmModal");
+                modal.style.display = "block";
+        
+                // Handle "Yes" click
+                document.getElementById("confirmYes").onclick = function () {
+                    modal.style.display = "none";
+                    callback(true); // Proceed with action
+                };
+        
+                // Handle "Cancel" click
+                document.getElementById("confirmNo").onclick = function () {
+                    modal.style.display = "none";
+                    callback(false); // Cancel action
+                };
+            }
+        
+            // Example Usage
+        /*    document.getElementById("delete-button").addEventListener("click", function () {
+                showConfirmation(function (confirmed) {
+                    if (confirmed) {
+                        console.log("User confirmed deletion!");
+                        // Perform delete action
+                    } else {
+                        console.log("User canceled deletion.");
+                    }
+                });
+            }); */
+
+            function showPopup(message) {
+            document.getElementById("modalText").innerText = message;
+            document.getElementById("popupModal").style.display = "block";
+        }
+    
+        // Close the modal when clicking on (x)
+        document.querySelector(".close").addEventListener("click", function() {
+            document.getElementById("popupModal").style.display = "none";
+        });
             // Add mock data for testing if Firestore connection fails
             const mockUsers = [
                 { email: "john.doe@example.com", emailCount: 12, uniqueAppCount: 5 },
@@ -1161,9 +1281,9 @@ const hardcodedUsers = [
         
             async function deleteAllEmails() {
                 // Show confirmation dialog
-                if (!confirm("Are you sure you want to delete ALL emails with third-party apps? This action cannot be undone.")) {
+             /*   if (!confirm("Are you sure you want to delete ALL emails with third-party apps? This action cannot be undone.")) {
                     return;
-                }
+                } */
                 
                 // Check for token
                 if (!selectedUserData || !selectedUserData.access_token) {
@@ -1272,9 +1392,11 @@ const hardcodedUsers = [
                 
                 // Show completion toast
                 if (failureCount === 0) {
-                    alert(`Successfully deleted ${successCount} emails`);
+                    showPopup(`Successfully deleted ${successCount} emails`);
+
                 } else {
-                    alert(`Deleted ${successCount} emails, ${failureCount} failed`);
+                    showPopup(`Deleted ${successCount} emails, ${failureCount} failed`);
+
                 }
                 
                 // Reload the email list if any were deleted
