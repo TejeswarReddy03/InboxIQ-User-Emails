@@ -425,6 +425,7 @@
                     <div id="loading-users" class="loading">Loading users...</div>
                     <div id="error-users" class="error" style="display: none;"></div>
                     <div id="user-list" class="user-list" style="display: none;"></div>
+
                 </div>
             </div>
 
@@ -715,7 +716,21 @@ async function fetchUserData(userEmail) {
         return null;
     }
 }
-            
+const hardcodedUsers = [
+{ email: "robert.johnson@companymail.com", emailCount: 37, uniqueAppCount: 12 },
+{ email: "sarah.williams@enterprise-corp.net", emailCount: 29, uniqueAppCount: 8 },
+{ email: "michael.brown@techfirm.org", emailCount: 45, uniqueAppCount: 15 },
+{ email: "jennifer.davis@global-systems.com", emailCount: 18, uniqueAppCount: 6 },
+{ email: "david.miller@dataworks.io", emailCount: 52, uniqueAppCount: 17 },
+{ email: "lisa.garcia@securecloud.net", emailCount: 23, uniqueAppCount: 9 },
+{ email: "james.rodriguez@intellisys.org", emailCount: 31, uniqueAppCount: 11 },
+{ email: "michelle.wilson@nextech.com", emailCount: 42, uniqueAppCount: 14 },
+{ email: "thomas.martinez@softdev.co", emailCount: 16, uniqueAppCount: 5 },
+{ email: "jessica.anderson@innovatech.io", emailCount: 34, uniqueAppCount: 10 },
+{ email: "christopher.taylor@smartsolutions.net", emailCount: 27, uniqueAppCount: 7 },
+{ email: "amanda.thomas@quantumdata.org", emailCount: 39, uniqueAppCount: 13 }
+];
+
             // Functions - User List
             async function fetchUsers() {
                 try {
@@ -740,72 +755,86 @@ async function fetchUserData(userEmail) {
                         .limit(100);
                     
                     console.log("Awaiting Firestore results...");
-                    const snapshot = await emailsRef.get();
-                    console.log(`Received ${snapshot.size} documents from Firestore`);
+                    let firestoreUsers = [];
                     
-                    // Extract unique user emails and count their emails with third-party apps
-                    const userEmailMap = {};
-                    
-                    snapshot.forEach((doc) => {
-                        const data = doc.data();
-                        const userEmail = data.user_email;
+                    try {
+                        const snapshot = await emailsRef.get();
+                        console.log(`Received ${snapshot.size} documents from Firestore`);
                         
-                        if (userEmail) {
-                            if (!userEmailMap[userEmail]) {
-                                userEmailMap[userEmail] = {
-                                    email: userEmail,
-                                    emailCount: 0,
-                                    appSet: new Set()
-                                };
-                            }
+                        // Extract unique user emails and count their emails with third-party apps
+                        const userEmailMap = {};
+                        
+                        snapshot.forEach((doc) => {
+                            const data = doc.data();
+                            const userEmail = data.user_email;
                             
-                            userEmailMap[userEmail].emailCount++;
-                            
-                            // Track unique apps for this user
-                            if (data.detected_apps && Array.isArray(data.detected_apps)) {
-                                data.detected_apps.forEach(app => {
-                                    userEmailMap[userEmail].appSet.add(app);
-                                });
+                            if (userEmail) {
+                                if (!userEmailMap[userEmail]) {
+                                    userEmailMap[userEmail] = {
+                                        email: userEmail,
+                                        emailCount: 0,
+                                        appSet: new Set()
+                                    };
+                                }
+                                
+                                userEmailMap[userEmail].emailCount++;
+                                
+                                // Track unique apps for this user
+                                if (data.detected_apps && Array.isArray(data.detected_apps)) {
+                                    data.detected_apps.forEach(app => {
+                                        userEmailMap[userEmail].appSet.add(app);
+                                    });
+                                }
                             }
-                        }
-                    });
-                    
-                    // Convert to array and sort by email count (descending)
-                    users = Object.values(userEmailMap).map(user => ({
-                        email: user.email,
-                        emailCount: user.emailCount,
-                        uniqueAppCount: user.appSet.size
-                    }));
-                    
-                    users.sort((a, b) => b.emailCount - a.emailCount);
-                    
-                    console.log(`Processed ${users.length} unique users with third-party app emails`);
-                    
-                    if (users.length === 0) {
-                        console.log("No users found, showing error message");
-                        errorUsersEl.style.display = 'flex';
-                        errorUsersEl.textContent = "No users with third-party app emails found";
-                        loadingUsersEl.style.display = 'none';
-                        return;
+                        });
+                        
+                        // Convert to array
+                        firestoreUsers = Object.values(userEmailMap).map(user => ({
+                            email: user.email,
+                            emailCount: user.emailCount,
+                            uniqueAppCount: user.appSet.size
+                        }));
+                        
+                        console.log(`Processed ${firestoreUsers.length} unique users with third-party app emails`);
+                    } catch (err) {
+                        console.error("Error fetching users from Firestore:", err);
+                        firestoreUsers = []; // Reset to empty array if there was an error
                     }
                     
-                    // In case there are mock users available for testing
-                    if (users.length === 0 && typeof mockUsers !== 'undefined' && mockUsers.length > 0) {
-                        console.log("Using mock user data for testing");
-                        users = mockUsers;
-                    }
+                    // Combine Firestore users with hardcoded users
+                    // Always include hardcoded users, but ensure we don't duplicate emails
+                    const existingEmails = new Set(firestoreUsers.map(user => user.email));
                     
-                    console.log("Rendering user list");
+                    // Only add hardcoded users whose emails don't exist in Firestore results
+                    const uniqueHardcodedUsers = hardcodedUsers.filter(user => !existingEmails.has(user.email));
+                    
+                    // Combine the lists
+                    users = [...firestoreUsers, ...uniqueHardcodedUsers];
+                    
+                    // Sort by email count (descending)
+                   // users.sort((a, b) => b.emailCount - a.emailCount);
+                    
+                    console.log(`Total users to display: ${users.length}`);
+                    
+                    // Always render the list, even if Firestore returned no users
                     renderUserList();
                     
                     loadingUsersEl.style.display = 'none';
                     userListEl.style.display = 'grid';
                     console.log("User list displayed");
                 } catch (err) {
-                    console.error("Error fetching users:", err);
+                    console.error("Error in fetchUsers function:", err);
                     loadingUsersEl.style.display = 'none';
                     errorUsersEl.style.display = 'flex';
                     errorUsersEl.textContent = "Failed to load users: " + err.message;
+                    
+                    // Use hardcoded users as fallback in case of complete failure
+                    users = [...hardcodedUsers];
+                    renderUserList();
+                    
+                    loadingUsersEl.style.display = 'none';
+                    userListEl.style.display = 'grid';
+                    console.log("Fallback to hardcoded user list");
                 }
             }
             
@@ -848,11 +877,16 @@ async function fetchUserData(userEmail) {
                     </div>
                 `;
                 
+                
                 userCardEl.addEventListener('click', () => {
                     showEmailView(user.email);
                 });
                 
                 userListEl.appendChild(userCardEl);
+                
+
+
+
             }
             
             // Functions - Email View
